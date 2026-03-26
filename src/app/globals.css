@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --hirearn-primary: #2563eb;
+  --hirearn-primary-dark: #1d4ed8;
+  --hirearn-surface: #f8fafc;
+  --hirearn-surface-elevated: #ffffff;
+  --hirearn-text: #0f172a;
+  --hirearn-text-muted: #64748b;
+  --hirearn-border: rgba(15, 23, 42, 0.08);
+  --hirearn-ring: rgba(37, 99, 235, 0.35);
+  --hirearn-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --hirearn-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --hirearn-shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.08), 0 8px 20px rgba(37, 99, 235, 0.06);
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -12,15 +23,85 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--hirearn-surface);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: rgba(37, 99, 235, 0.15);
+  color: var(--hirearn-text);
+}
+
+/* Premium auth / marketing backdrop */
+.hirearn-mesh {
+  background-color: var(--hirearn-surface);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -30%, rgba(37, 99, 235, 0.16), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, rgba(59, 130, 246, 0.08), transparent 45%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(100, 116, 139, 0.06), transparent 50%);
+}
+
+.hirearn-card {
+  background: var(--hirearn-surface-elevated);
+  border: 1px solid var(--hirearn-border);
+  box-shadow: var(--hirearn-shadow-md);
+}
+
+.hirearn-input {
+  @apply w-full rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition-all duration-200;
+  box-shadow: var(--hirearn-shadow-sm);
+}
+.hirearn-input::placeholder {
+  @apply text-slate-400;
+}
+.hirearn-input:focus {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 4px var(--hirearn-ring), var(--hirearn-shadow-sm);
+}
+
+.hirearn-btn-primary {
+  @apply rounded-2xl bg-[#2563EB] px-5 py-3.5 text-[15px] font-semibold tracking-wide text-white transition-all duration-200 active:scale-[0.98];
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+.hirearn-btn-primary:hover:not(:disabled) {
+  background-color: var(--hirearn-primary-dark);
+  box-shadow:               0 6px 20px rgba(37, 99, 235, 0.4);
+}
+.hirearn-btn-primary:disabled {
+  @apply opacity-55;
+  box-shadow: none;
+}
+
+/* Legal / long-form */
+.prose-hirearn {
+  @apply text-[15px] leading-relaxed text-slate-600;
+}
+.prose-hirearn h1 {
+  @apply text-2xl font-bold tracking-tight text-slate-900;
+}
+.prose-hirearn h2 {
+  @apply mt-8 text-lg font-semibold text-slate-900;
+}
+.prose-hirearn h3 {
+  @apply mt-5 text-base font-semibold text-slate-800;
+}
+.prose-hirearn p {
+  @apply mt-3;
+}
+.prose-hirearn ul {
+  @apply mt-3 list-disc space-y-2 pl-5;
+}
+.prose-hirearn a {
+  @apply font-medium text-[#2563EB] underline decoration-blue-200 underline-offset-2;
 }

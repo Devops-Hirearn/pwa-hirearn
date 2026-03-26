@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# pwa-hirearn
 
-## Getting Started
+Progressive Web App for **Hirearn employers** (Next.js 16, React 19). Uses the same REST API as the Android app.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Copy `.env.example` to `.env.local`.
+2. Set `NEXT_PUBLIC_API_URL` to your API base including `/api`.
+3. **CORS:** Add your web origin to the backend `ALLOWED_ORIGINS` (e.g. `http://localhost:3000` for local dev).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` — dev server (webpack; required for `@ducanh2912/next-pwa`)
+- `npm run build` — production build + service worker under `public/`
+- `npm start` — run production server
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## PWA
 
-## Learn More
+- Manifest: `public/manifest.webmanifest`
+- Service worker is emitted on **production** build; in development PWA is disabled in `next.config.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Implemented
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- OTP login (`/auth/send-otp`, `/auth/verify-otp`) with employer role
+- Auth token in `localStorage` (`authToken`, same key as mobile)
+- Mobile-style shell: bottom tabs + safe-area padding
+- Stub screens: home, jobs, messages, wallet, settings
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Next steps
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Port job posting, attendance, chat, and wallet flows from `frontend-hirearn` using the same API shapes.
