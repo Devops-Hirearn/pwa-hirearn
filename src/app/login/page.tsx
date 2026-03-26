@@ -4,6 +4,7 @@ import { HirearnMark } from "@/components/brand/HirearnMark";
 import { useAuth } from "@/contexts/auth-context";
 import { clearStoredToken, sendOtp, verifyOtp } from "@/lib/api/client";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -147,8 +148,15 @@ export default function LoginPage() {
     <div className="min-h-svh hirearn-mesh px-4 pb-10 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6">
       <div className="mx-auto w-full max-w-[420px]">
         <div className="flex flex-col items-center pt-2">
-          <HirearnMark className="justify-center" />
-          <p className="mt-4 text-center text-[15px] text-slate-600">
+          <div className="flex flex-col items-center">
+            <div className="relative h-14 w-14 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-black/[0.05]">
+              <Image src="/icon-192.png" alt="Hirearn" fill className="object-cover" priority />
+            </div>
+            <div className="mt-4">
+              <HirearnMark className="justify-center" />
+            </div>
+          </div>
+          <p className="mt-4 text-center text-[15px] font-medium text-slate-600">
             Sign in with your mobile number. We&apos;ll send a one-time code by SMS.
           </p>
         </div>
@@ -193,7 +201,9 @@ export default function LoginPage() {
                     ref={phoneInputRef}
                     inputMode="numeric"
                     autoComplete="tel"
-                    maxLength={10}
+                    // We render a space after 5 digits (e.g. 98765 43210),
+                    // so maxLength must allow 11 characters; we still enforce 10 digits in state.
+                    maxLength={11}
                     className="min-w-0 flex-1 rounded-2xl bg-transparent py-3.5 pr-4 pl-2 text-lg font-medium tracking-wide text-slate-900 outline-none placeholder:text-slate-400"
                     placeholder="98765 43210"
                     value={formatPhoneDisplay(phoneDigits)}
