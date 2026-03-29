@@ -2,7 +2,8 @@
 
 import { HirearnMark } from "@/components/brand/HirearnMark";
 import { useAuth } from "@/contexts/auth-context";
-import { clearStoredToken, sendOtp, verifyOtp } from "@/lib/api/client";
+import { clearStoredToken, getCurrentUser, sendOtp, verifyOtp } from "@/lib/api/client";
+import { getEmployerOnboardingPath } from "@/lib/auth/employerGating";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,8 @@ export default function LoginPage() {
       return;
     }
     if (user?.role === "employer") {
-      router.replace("/home");
+      const gate = getEmployerOnboardingPath(user);
+      router.replace(gate ?? "/home");
     }
   }, [ready, user, router]);
 
@@ -125,7 +127,8 @@ export default function LoginPage() {
         return;
       }
       await refreshUser();
-      router.replace("/home");
+      const me = await getCurrentUser();
+      router.replace(getEmployerOnboardingPath(me) ?? "/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");
     } finally {

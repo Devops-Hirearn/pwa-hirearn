@@ -2,6 +2,7 @@
 
 import { BottomNav } from "@/components/employer/BottomNav";
 import { useAuth } from "@/contexts/auth-context";
+import { getEmployerOnboardingPath } from "@/lib/auth/employerGating";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
@@ -23,6 +24,10 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     if (user.role && user.role !== "employer") {
       return;
     }
+    if (user.role === "employer") {
+      const gate = getEmployerOnboardingPath(user);
+      if (gate) router.replace(gate);
+    }
   }, [ready, user, router]);
 
   if (!ready || !user) {
@@ -30,6 +35,15 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 hirearn-mesh">
         <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
         <p className="text-sm font-medium text-slate-500">Loading your workspace…</p>
+      </div>
+    );
+  }
+
+  if (!user.isAdmin && user.role === "employer" && getEmployerOnboardingPath(user)) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 hirearn-mesh px-4 pt-[max(2rem,env(safe-area-inset-top))]">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+        <p className="text-sm font-medium text-slate-500">Setting up your account…</p>
       </div>
     );
   }

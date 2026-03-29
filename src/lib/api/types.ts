@@ -26,7 +26,13 @@ export interface AppUser {
   profilePhoto?: string;
   /** Employer daily job posting — aligned with mobile KYC gate */
   isIdentityVerified?: boolean;
-  identityDocuments?: { verificationStatus?: string };
+  identityDocuments?: {
+    verificationStatus?: string;
+    aadhaarFront?: string;
+    aadhaarBack?: string;
+    panCard?: string;
+    selfie?: string;
+  };
   [key: string]: unknown;
 }
 
