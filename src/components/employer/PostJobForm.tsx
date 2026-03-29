@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormSectionCard, formFieldLabelClass, formInputClass, formTextareaClass } from "@/components/employer/FormSectionCard";
 import { useAuth } from "@/contexts/auth-context";
-import { createEmployerJob } from "@/lib/api/jobCreate";
+import { createEmployerJob, getEmployerBillingConfig } from "@/lib/api/jobCreate";
 import { placesAutocomplete, placeDetails, type PlacePrediction } from "@/lib/api/places";
 import { uploadFileWithPresign } from "@/lib/uploads/presign";
 
@@ -90,6 +90,28 @@ export function PostJobForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [kycBlock, setKycBlock] = useState(false);
+  /** Mirrors mobile PostJob: from GET /jobs/billing-config; null until first fetch completes. */
+  const [showDigitalUpfrontTokenSplit, setShowDigitalUpfrontTokenSplit] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const cfg = await getEmployerBillingConfig();
+        if (cancelled) return;
+        if (cfg?.showDigitalUpfrontTokenSplit !== undefined) {
+          setShowDigitalUpfrontTokenSplit(Boolean(cfg.showDigitalUpfrontTokenSplit));
+        } else {
+          setShowDigitalUpfrontTokenSplit(true);
+        }
+      } catch {
+        if (!cancelled) setShowDigitalUpfrontTokenSplit(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancel = false;
@@ -152,6 +174,144 @@ export function PostJobForm() {
       })),
     [facilities],
   );
+
+  const numberOfDays = useMemo(() => {
+    if (jobType !== "DAILY") return 1;
+    if (!isMultiDay) return 1;
+    if (!startDate || !endDate) return 1;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 1;
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return days > 0 ? days : 1;
+  }, [jobType, isMultiDay, startDate, endDate]);
+
+  const formatCurrency = (value: number | undefined | null) => {
+    if (value === undefined || value === null || Number.isNaN(value) || !Number.isFinite(value)) return "0";
+    return value.toLocaleString("en-IN");
+  };
+
+  /** Same rules as mobile `PostJob.tsx` `amountBreakdown`. */
+  const amountBreakdown = useMemo(() => {
+    const workers = Number(workersNeeded || 1);
+    const payPerWorker = Number(dailySalary || 0);
+    const days = numberOfDays > 0 ? numberOfDays : 1;
+
+    if (Number.isNaN(workers) || workers < 1) {
+      return {
+        grossJobAmount: 0,
+        platformCommission: 0,
+        netWorkerAmount: 0,
+        tokenAmount: 0,
+        remainingAmount: 0,
+        grossDayAmount: 0,
+        netDayAmount: 0,
+        tokenPercentage: 0,
+        isCashMode: payoutMode === "CASH",
+        hideDigitalTokenSplit: false,
+        isMonthly: false,
+      };
+    }
+    if (Number.isNaN(payPerWorker) || payPerWorker <= 0) {
+      return {
+        grossJobAmount: 0,
+        platformCommission: 0,
+        netWorkerAmount: 0,
+        tokenAmount: 0,
+        remainingAmount: 0,
+        grossDayAmount: 0,
+        netDayAmount: 0,
+        tokenPercentage: 0,
+        isCashMode: payoutMode === "CASH",
+        hideDigitalTokenSplit: false,
+        isMonthly: false,
+      };
+    }
+
+    const grossJobAmount = payPerWorker * days;
+    const platformCommission = Math.round(grossJobAmount * 0.07);
+    const netWorkerAmount = grossJobAmount - platformCommission;
+    const grossDayAmount = days > 0 ? Math.round(grossJobAmount / days) : 0;
+    const platformCommissionPerDay = Math.round(grossDayAmount * 0.07);
+    const netDayAmount = grossDayAmount - platformCommissionPerDay;
+
+    if (jobType === "MONTHLY") {
+      return {
+        grossJobAmount: payPerWorker,
+        platformCommission: 0,
+        netWorkerAmount: payPerWorker,
+        tokenAmount: 0,
+        remainingAmount: 0,
+        grossDayAmount: 0,
+        netDayAmount: 0,
+        tokenPercentage: 0,
+        isCashMode: true,
+        hideDigitalTokenSplit: false,
+        isMonthly: true,
+      };
+    }
+
+    if (payoutMode === "CASH") {
+      const cashTokenPercentage = 0.085;
+      const cashTokenPerWorker = Math.round(grossJobAmount * cashTokenPercentage);
+      const cashTokenTotal = cashTokenPerWorker * workers;
+      return {
+        grossJobAmount: grossJobAmount || 0,
+        platformCommission: platformCommission || 0,
+        netWorkerAmount: netWorkerAmount || 0,
+        tokenAmount: cashTokenTotal || 0,
+        remainingAmount: 0,
+        grossDayAmount: grossDayAmount || 0,
+        netDayAmount: netDayAmount || 0,
+        tokenPercentage: cashTokenPercentage * 100,
+        isCashMode: true,
+        hideDigitalTokenSplit: false,
+        isMonthly: false,
+      };
+    }
+
+    if (showDigitalUpfrontTokenSplit === false) {
+      return {
+        grossJobAmount: grossJobAmount || 0,
+        platformCommission: platformCommission || 0,
+        netWorkerAmount: netWorkerAmount || 0,
+        tokenAmount: 0,
+        remainingAmount: 0,
+        grossDayAmount: grossDayAmount || 0,
+        netDayAmount: netDayAmount || 0,
+        tokenPercentage: 0,
+        isCashMode: false,
+        hideDigitalTokenSplit: true,
+        isMonthly: false,
+      };
+    }
+
+    let tokenPercentage = 0.5;
+    if (workers >= 6 && workers <= 15) tokenPercentage = 0.3;
+    if (workers >= 16) tokenPercentage = 0.1;
+    const tokenAmountPerWorker = Math.round(grossJobAmount * tokenPercentage);
+    const remainingAmountPerWorker = grossJobAmount - tokenAmountPerWorker;
+
+    return {
+      grossJobAmount: grossJobAmount || 0,
+      platformCommission: platformCommission || 0,
+      netWorkerAmount: netWorkerAmount || 0,
+      tokenAmount: (tokenAmountPerWorker * workers) || 0,
+      remainingAmount: (remainingAmountPerWorker * workers) || 0,
+      grossDayAmount: grossDayAmount || 0,
+      netDayAmount: netDayAmount || 0,
+      tokenPercentage: tokenPercentage * 100,
+      isCashMode: false,
+      hideDigitalTokenSplit: false,
+      isMonthly: false,
+    };
+  }, [workersNeeded, dailySalary, numberOfDays, payoutMode, jobType, showDigitalUpfrontTokenSplit]);
+
+  const digitalPayoutHint =
+    showDigitalUpfrontTokenSplit === false
+      ? "No upfront token split. You pay from the platform after workers check out, based on actual time worked (see job completion flow)."
+      : "Platform fee (7%) will be deducted before worker payout.";
 
   const buildLocationPayload = () => {
     const base: Record<string, unknown> = {
@@ -247,7 +407,6 @@ export function PostJobForm() {
           paymentPerWorker: 0,
         };
       } else {
-        let numberOfDays = 1;
         if (isMultiDay) {
           if (!startDate || !endDate) {
             setSubmitting(false);
@@ -259,8 +418,6 @@ export function PostJobForm() {
             setSubmitting(false);
             return setError("End date must be after start date");
           }
-          const diffTime = Math.abs(en.getTime() - s.getTime());
-          numberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
         } else {
           if (!date) {
             setSubmitting(false);
@@ -294,7 +451,6 @@ export function PostJobForm() {
           requirements: specialInstructions.trim() ? [specialInstructions.trim()] : [],
           facilities: facilityPayload,
           payoutMode,
-          dailyBillingModel: payoutMode === "DIGITAL" ? "PAY_ON_COMPLETION" : "TOKEN_UPFRONT",
           jobType: "DAILY",
           documentsRequired: uploadedUrls,
         };
@@ -543,11 +699,7 @@ export function PostJobForm() {
             <div className="mt-2 space-y-2">
               {(
                 [
-                  [
-                    "DIGITAL",
-                    "Digital — recommended",
-                    "Workers are paid through Hirearn after the job is finished — no upfront posting token.",
-                  ],
+                  ["DIGITAL", "Digital — recommended", digitalPayoutHint],
                   ["CASH", "Cash", "Platform token before posting; you pay workers in cash on site."],
                 ] as const
               ).map(([v, titleOpt, hint]) => (
@@ -574,6 +726,105 @@ export function PostJobForm() {
                 </label>
               ))}
             </div>
+            <p className="mt-3 text-xs font-medium leading-relaxed text-slate-600">
+              {payoutMode === "CASH"
+                ? "Token fee (8.5%) is a non-refundable platform fee. You pay workers the full net amount in cash."
+                : showDigitalUpfrontTokenSplit === false
+                  ? "No upfront token split. You pay from the platform after workers check out, based on actual time worked (see job completion flow)."
+                  : "Platform fee (7%) will be deducted before worker payout."}
+            </p>
+            {Number(dailySalary) > 0 ? (
+              <div className="mt-4 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+                <p className="text-sm font-bold text-slate-900">Payment breakdown</p>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-medium text-slate-600">Total job cost (per worker)</span>
+                    <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.grossJobAmount)}</span>
+                  </div>
+                  {isMultiDay && numberOfDays > 1 ? (
+                    <>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Per day (gross, per worker)</span>
+                        <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.grossDayAmount)}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Per day (net to worker)</span>
+                        <span className="font-semibold text-emerald-800">₹{formatCurrency(amountBreakdown.netDayAmount)}</span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-500">
+                        {numberOfDays} day{numberOfDays > 1 ? "s" : ""} × ₹{formatCurrency(amountBreakdown.grossDayAmount)} = ₹
+                        {formatCurrency(amountBreakdown.grossJobAmount)} per worker
+                      </p>
+                    </>
+                  ) : null}
+                  <div className="my-2 border-t border-slate-200/90" />
+                  {payoutMode === "CASH" ? (
+                    <>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Token fee (8.5%, non-refundable)</span>
+                        <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.tokenAmount)}</span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-500">
+                        (₹
+                        {formatCurrency(Math.round(amountBreakdown.tokenAmount / (Number(workersNeeded) || 1)))}) per worker ×{" "}
+                        {workersNeeded} worker{Number(workersNeeded) !== 1 ? "s" : ""}
+                      </p>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">You pay worker in cash (net, per worker)</span>
+                        <span className="font-semibold text-emerald-800">₹{formatCurrency(amountBreakdown.netWorkerAmount)}</span>
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-red-800">
+                        You must pay ₹{formatCurrency(amountBreakdown.netWorkerAmount)} per worker in cash (total: ₹
+                        {formatCurrency(amountBreakdown.netWorkerAmount * (Number(workersNeeded) || 1))} for {workersNeeded}{" "}
+                        worker{Number(workersNeeded) !== 1 ? "s" : ""}). The platform does not handle this payment.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Platform commission (7%, per worker)</span>
+                        <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.platformCommission)}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Worker receives (net, per worker)</span>
+                        <span className="font-semibold text-emerald-800">₹{formatCurrency(amountBreakdown.netWorkerAmount)}</span>
+                      </div>
+                      {amountBreakdown.hideDigitalTokenSplit ? (
+                        <p className="mt-2 text-xs font-medium text-slate-600">
+                          Upfront token and &quot;remaining&quot; split does not apply. Settlement uses checkout attendance;
+                          amounts are shown when you complete the job.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                  {payoutMode === "DIGITAL" && !amountBreakdown.hideDigitalTokenSplit ? (
+                    <>
+                      <div className="my-2 border-t border-slate-200/90" />
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">
+                          Token payment ({formatCurrency(amountBreakdown.tokenPercentage) || "0"}%)
+                        </span>
+                        <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.tokenAmount)}</span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-500">
+                        (₹
+                        {formatCurrency(Math.round(amountBreakdown.tokenAmount / (Number(workersNeeded) || 1)))}) per worker ×{" "}
+                        {workersNeeded} worker{Number(workersNeeded) !== 1 ? "s" : ""}
+                      </p>
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium text-slate-600">Remaining amount (total)</span>
+                        <span className="font-semibold text-slate-900">₹{formatCurrency(amountBreakdown.remainingAmount)}</span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-500">
+                        (₹
+                        {formatCurrency(Math.round(amountBreakdown.remainingAmount / (Number(workersNeeded) || 1)))}) per worker ×{" "}
+                        {workersNeeded} worker{Number(workersNeeded) !== 1 ? "s" : ""}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </FormSectionCard>
       ) : (

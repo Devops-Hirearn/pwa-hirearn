@@ -1,6 +1,23 @@
 import { apiRequest } from "./client";
 import type { EmployerJob } from "./types";
 
+/** Same as mobile `getEmployerBillingConfig` — drives digital fee copy and breakdown. */
+export async function getEmployerBillingConfig(): Promise<{
+  success?: boolean;
+  defaultDailyBillingModel?: string;
+  showDigitalUpfrontTokenSplit?: boolean;
+} | null> {
+  try {
+    return await apiRequest<{
+      success?: boolean;
+      defaultDailyBillingModel?: string;
+      showDigitalUpfrontTokenSplit?: boolean;
+    }>("/jobs/billing-config");
+  } catch {
+    return null;
+  }
+}
+
 export async function createEmployerJob(payload: Record<string, unknown>) {
   const res = await apiRequest<{
     success?: boolean;
