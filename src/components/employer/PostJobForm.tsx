@@ -833,6 +833,9 @@ export function PostJobForm() {
           title="Monthly package"
           subtitle="Applicants see the salary range you publish."
         >
+          <p className="text-xs font-medium leading-relaxed text-slate-600">
+            Hirearn is a platform for discovery only. No platform fees or commissions apply for Monthly jobs.
+          </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={formFieldLabelClass}>Min salary (₹ / mo)</label>
