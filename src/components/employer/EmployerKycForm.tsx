@@ -14,7 +14,6 @@ function FileSlot({
   hint,
   file,
   onPick,
-  capture,
   selfieCamera,
 }: {
   id: string;
@@ -22,12 +21,10 @@ function FileSlot({
   hint: string;
   file: File | null;
   onPick: (f: File | null) => void;
-  /** Prefer rear camera when taking a new photo (Aadhaar). */
-  capture?: "user" | "environment";
-  /** Selfie: open front camera first on iPhone (still allows “Photo Library” in the system sheet). */
+  /** Only the selfie uses `capture="user"` so phones open the front camera; documents use the picker only. */
   selfieCamera?: boolean;
 }) {
-  const captureProp = selfieCamera ? ({ capture: "user" as const } as const) : capture ? { capture } : {};
+  const captureProp = selfieCamera ? ({ capture: "user" as const } as const) : {};
 
   return (
     <div>
@@ -67,7 +64,7 @@ function FileSlot({
                 </>
               ) : (
                 <>
-                  Camera or gallery · <span className="text-slate-800">{hint}</span>
+                  Choose from photos · <span className="text-slate-800">{hint}</span>
                 </>
               )}
             </span>
@@ -151,30 +148,9 @@ export function EmployerKycForm({ onComplete }: { onComplete?: () => void }) {
         title="Identity documents"
         subtitle="Same as the Hirearn app for employers: Aadhaar front & back, PAN card, and selfie. Files upload securely to cloud storage (presigned S3). Max ~5 MB each unless your server allows more."
       >
-        <FileSlot
-          id="kyc-front"
-          label="Aadhaar — front"
-          hint="Front card"
-          file={front}
-          capture="environment"
-          onPick={setFront}
-        />
-        <FileSlot
-          id="kyc-back"
-          label="Aadhaar — back"
-          hint="Back card"
-          file={back}
-          capture="environment"
-          onPick={setBack}
-        />
-        <FileSlot
-          id="kyc-pan"
-          label="PAN card"
-          hint="Clear photo of PAN"
-          file={pan}
-          capture="environment"
-          onPick={setPan}
-        />
+        <FileSlot id="kyc-front" label="Aadhaar — front" hint="Front card" file={front} onPick={setFront} />
+        <FileSlot id="kyc-back" label="Aadhaar — back" hint="Back card" file={back} onPick={setBack} />
+        <FileSlot id="kyc-pan" label="PAN card" hint="Clear photo of PAN" file={pan} onPick={setPan} />
         <FileSlot
           id="kyc-selfie"
           label="Selfie"
